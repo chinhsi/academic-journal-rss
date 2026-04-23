@@ -25,9 +25,10 @@ Dispatch on the user's argument after `/academic-journal-rss`:
 
 1. Run `python3 scripts/init.py`. It creates the data dir, installs missing deps, and writes an empty config. Capture the JSON output.
 2. If `has_interests` is false, ask the user: "Describe your research interests in 2-4 sentences. I'll use this to rank new papers." Save with `python3 scripts/set_interests.py "<their exact text>"` — do not truncate or paraphrase.
-3. If `feeds_count` is 0, ask the user if they want to import the sample feeds from `defaults/feeds.example.toml`, or add their own URLs now. For each URL they give, run `add_feed.py <url>`.
-4. Ask about notifications: desktop on/off (default on), email on/off (default off). If email on, use the Edit tool to update `config.json` `notifications.email.enabled` to `true` and `to` to the address they gave. Do NOT use Bash heredoc or `python3 -c` for this.
-5. Confirm by running `list_feeds.py` and summarizing.
+3. Ask where to write daily digest files. Default is `~/rss-digest`. Offer the Obsidian vault pattern: "若你用 Obsidian，可以指定 vault 內的資料夾（例如 `~/Documents/<vault>/研究/RSS`），摘要會直接出現在 vault 裡，可點連結開文章。" Run `python3 scripts/set_digest_dir.py <path>` with whatever they give (or skip if they accept default). The script creates the directory if missing.
+4. If `feeds_count` is 0, ask the user if they want to import the sample feeds from `defaults/feeds.example.toml`, or add their own URLs now. For each URL they give, run `add_feed.py <url>`.
+5. Ask about notifications: desktop on/off (default on), email on/off (default off). If email on, use the Edit tool to update `config.json` `notifications.email.enabled` to `true` and `to` to the address they gave. Do NOT use Bash heredoc or `python3 -c` for this.
+6. Confirm by running `list_feeds.py` and summarizing.
 
 ### `add <url> [--name ...] [--category ...]`
 
@@ -40,6 +41,10 @@ Run `python3 scripts/list_feeds.py` and format the JSON output as a readable tab
 ### `remove <url-or-name>`
 
 Run `python3 scripts/remove_feed.py <url-or-name>`. The script matches exact URL/name first, then falls back to case-insensitive substring. On multiple matches it lists them and exits; pass `--force` to remove the first. Confirm with the user before running.
+
+### `set-dir <path>`
+
+Run `python3 scripts/set_digest_dir.py <path>` to change where daily digests get written. Expands `~` and env vars, creates the directory if missing. Typical use: point to an Obsidian vault folder so digests appear inline with research notes.
 
 ### `sync`
 
