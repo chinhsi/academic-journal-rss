@@ -24,7 +24,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "feed_overrides": {},
     "notifications": {
         "markdown_dir": str(DIGEST_DIR),
-        "desktop": True,
         "email": {"enabled": False, "to": ""},
     },
     "settings": {

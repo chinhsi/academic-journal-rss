@@ -1,6 +1,6 @@
 ---
 name: academic-journal-rss
-description: Fetch academic journal / blog RSS feeds, rank new items against the user's research interests, write a daily markdown digest, and notify. Use when the user says "/academic-journal-rss ...", asks to set up their RSS feeds, add a feed, or run today's digest.
+description: Fetch academic journal / blog RSS feeds, rank new items against the user's research interests, write a daily markdown digest (optionally into an Obsidian vault), and optionally email it. Use when the user says "/academic-journal-rss ...", asks to set up their RSS feeds, add a feed, or run today's digest.
 ---
 
 # academic-journal-rss
@@ -27,7 +27,7 @@ Dispatch on the user's argument after `/academic-journal-rss`:
 2. If `has_interests` is false, ask the user: "Describe your research interests in 2-4 sentences. I'll use this to rank new papers." Save with `python3 scripts/set_interests.py "<their exact text>"` — do not truncate or paraphrase.
 3. Ask where to write daily digest files. Default is `~/rss-digest`. Offer the Obsidian vault pattern: "若你用 Obsidian，可以指定 vault 內的資料夾（例如 `~/Documents/<vault>/研究/RSS`），摘要會直接出現在 vault 裡，可點連結開文章。" Run `python3 scripts/set_digest_dir.py <path>` with whatever they give (or skip if they accept default). The script creates the directory if missing.
 4. If `feeds_count` is 0, ask the user if they want to import the sample feeds from `defaults/feeds.example.toml`, or add their own URLs now. For each URL they give, run `add_feed.py <url>`.
-5. Ask about notifications: desktop on/off (default on), email on/off (default off). If email on, use the Edit tool to update `config.json` `notifications.email.enabled` to `true` and `to` to the address they gave. Do NOT use Bash heredoc or `python3 -c` for this.
+5. Ask about email: email on/off (default off). If email on, use the Edit tool to update `config.json` `notifications.email.enabled` to `true` and `to` to the address they gave. Do NOT use Bash heredoc or `python3 -c` for this.
 6. Confirm by running `list_feeds.py` and summarizing.
 
 ### `add <url> [--name ...] [--category ...]`
@@ -94,15 +94,13 @@ This is what the scheduled routine calls. Steps:
 
    `top_n` and `filter_window_hours` come from the sync JSON output's `settings` object — not from a separate config query. Sort by score desc, then by published desc.
 
-   If `new_items` is empty: write a one-line "過去 `<settings.filter_window_hours>` 小時內無新文章。" digest. Still notify so the user knows the run succeeded.
+   If `new_items` is empty: write a one-line "過去 `<settings.filter_window_hours>` 小時內無新文章。" digest so the daily file still exists.
 
 4. **Mark seen.** Re-run `python3 scripts/sync.py --mark`. This refetches (cheap; httpx may cache) and marks every GUID we just processed as seen in `state.json`. Without this step the same items come back tomorrow.
 
    _Alternative for perf:_ skip refetch by writing the GUIDs directly — but prefer `--mark` for consistency.
 
-5. **Notify.** Run `python3 scripts/notify.py --digest-file <path> --title "RSS 摘要：N 則新文章" --summary "精選：<title of #1>"`.
-
-6. **Email (if enabled).** Use the `notifications.email` object from the sync JSON output. If `enabled` is true, call the Gmail MCP tool `mcp__claude_ai_Gmail__create_draft` with:
+5. **Email (if enabled).** Use the `notifications.email` object from the sync JSON output. If `enabled` is true, call the Gmail MCP tool `mcp__claude_ai_Gmail__create_draft` with:
    - `to`: the configured address
    - `subject`: `RSS 摘要 YYYY-MM-DD — N 則新文章`
    - `body`: the full markdown digest content
