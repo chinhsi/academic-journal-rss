@@ -11,7 +11,8 @@ You are running a personal RSS digest tool. Scripts do the deterministic parts (
 
 - Skill root: the directory containing this `SKILL.md`.
 - Python scripts: `<skill-root>/scripts/*.py`. Always invoke with `python3 <skill-root>/scripts/<name>.py`.
-- User config: `~/.claude/skills-data/rss-tracker/config.json` (or `$RSS_TRACKER_HOME/config.json`).
+- User config: `~/.claude/skills-data/academic-journal-rss/config.json` (or `$RSS_TRACKER_HOME/config.json`).
+- **Never read config values with Bash + `python3 -c` or `jq`**. `sync.py` already emits `interests`, `settings.*`, and `notifications` in its JSON output — use those. For config mutations, use the dedicated scripts (`set_interests.py`, `add_feed.py`, `remove_feed.py`) or the Edit tool on `config.json` directly.
 - Digest output: `~/rss-digest/YYYY-MM-DD.md` (configurable).
 
 `init.py` self-heals dependencies: on first run it imports `feedparser` + `httpx` and, if missing, runs `python3 -m pip install --user -r requirements.txt` (falls back to `--break-system-packages` on PEP 668 systems). Always run `init` before any other sub-command on a fresh machine. If a later script still fails with `ImportError`, re-run `init` — it will fix deps and exit cleanly.
@@ -50,11 +51,11 @@ This is what the scheduled routine calls. Steps:
 
 1. **Fetch.** Run `python3 scripts/sync.py` (no `--mark`). Parse the JSON. If `errors[]` is non-empty, note them but continue — one broken feed should not block the digest.
 
-2. **Rank.** Load `config.json` → `interests`. For each item in `new_items`, assign:
+2. **Rank.** Use the `interests` field from the `sync.py` JSON output (already fetched in step 1 — do not re-query config). For each item in `new_items`, assign:
    - `relevance` (integer 1–5): how closely this matches the user's interests
    - `reason` (one short sentence): why you gave that score, referencing the user's interests
 
-   Do this in one pass in your head; do not ask the user to wait for a tool call per item. If there are more than 50 items, rank all of them but only include those with `relevance >= settings.min_relevance` in the digest.
+   Do this in one pass in your head; do not ask the user to wait for a tool call per item. If there are more than 50 items, rank all of them but only include those with `relevance >= settings.min_relevance` (also from the JSON output) in the digest.
 
 3. **Write digest.** Create `~/rss-digest/YYYY-MM-DD.md` (use today's local date) **using the Write tool, not Bash**. Writing markdown (with `#` headers) via `cat > file <<EOF` triggers Claude Code's path-validation heuristic and forces a permission prompt on every run — the Write tool avoids it. Format:
 
@@ -83,9 +84,9 @@ This is what the scheduled routine calls. Steps:
    | 4 | ... | ... | ... |
    ```
 
-   Top {top_n} = `settings.top_n` from config (default 5). Sort by score desc, then by published desc.
+   `top_n` and `filter_window_hours` come from the sync JSON output's `settings` object — not from a separate config query. Sort by score desc, then by published desc.
 
-   If `new_items` is empty: write a one-line "No new items in the last {window_hours}h." digest. Still notify so the user knows the run succeeded.
+   If `new_items` is empty: write a one-line "No new items in the last `<settings.filter_window_hours>`h." digest. Still notify so the user knows the run succeeded.
 
 4. **Mark seen.** Re-run `python3 scripts/sync.py --mark`. This refetches (cheap; httpx may cache) and marks every GUID we just processed as seen in `state.json`. Without this step the same items come back tomorrow.
 
@@ -93,7 +94,7 @@ This is what the scheduled routine calls. Steps:
 
 5. **Notify.** Run `python3 scripts/notify.py --digest-file <path> --title "RSS digest: N new items" --summary "Top: <title of #1>"`.
 
-6. **Email (if enabled).** Read `config.json` → `notifications.email`. If `enabled` is true, call the Gmail MCP tool `mcp__claude_ai_Gmail__create_draft` with:
+6. **Email (if enabled).** Use the `notifications.email` object from the sync JSON output. If `enabled` is true, call the Gmail MCP tool `mcp__claude_ai_Gmail__create_draft` with:
    - `to`: the configured address
    - `subject`: `RSS digest YYYY-MM-DD — N new`
    - `body`: the full markdown digest content

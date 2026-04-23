@@ -133,6 +133,13 @@ def main() -> None:
                 "stats": {"feeds": feed_stats, "new_count": len(new_items)},
                 "errors": errors,
                 "marked": args.mark,
+                "settings": {
+                    "filter_window_hours": window_hours,
+                    "top_n": cfg["settings"]["top_n"],
+                    "min_relevance": cfg["settings"]["min_relevance"],
+                },
+                "interests": cfg.get("interests", ""),
+                "notifications": cfg.get("notifications", {}),
             },
             indent=2,
             ensure_ascii=False,
