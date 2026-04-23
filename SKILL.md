@@ -22,10 +22,10 @@ Dispatch on the user's argument after `/academic-journal-rss`:
 
 ### `init` — first-time setup
 
-1. Run `python3 scripts/init.py`. It creates the data dir and empty config. Capture the JSON output.
-2. If `has_interests` is false, ask the user: "Describe your research interests in 2-4 sentences. I'll use this to rank new papers." Save it to `config.json` by reading the file with Python, updating `interests`, and writing back. Do not truncate or paraphrase what they wrote.
+1. Run `python3 scripts/init.py`. It creates the data dir, installs missing deps, and writes an empty config. Capture the JSON output.
+2. If `has_interests` is false, ask the user: "Describe your research interests in 2-4 sentences. I'll use this to rank new papers." Save with `python3 scripts/set_interests.py "<their exact text>"` — do not truncate or paraphrase.
 3. If `feeds_count` is 0, ask the user if they want to import the sample feeds from `defaults/feeds.example.toml`, or add their own URLs now. For each URL they give, run `add_feed.py <url>`.
-4. Ask about notifications: desktop on/off (default on), email on/off (default off). If email on, ask for the recipient address and set `notifications.email.enabled=true` and `to=<addr>`.
+4. Ask about notifications: desktop on/off (default on), email on/off (default off). If email on, use the Edit tool to update `config.json` `notifications.email.enabled` to `true` and `to` to the address they gave. Do NOT use Bash heredoc or `python3 -c` for this.
 5. Confirm by running `list_feeds.py` and summarizing.
 
 ### `add <url> [--name ...] [--category ...]`
@@ -38,7 +38,7 @@ Run `python3 scripts/list_feeds.py` and format the JSON output as a readable tab
 
 ### `remove <url-or-name>`
 
-Read `config.json`, remove the matching entry from `feeds`, write back. Confirm with the user before deleting.
+Run `python3 scripts/remove_feed.py <url-or-name>`. The script matches exact URL/name first, then falls back to case-insensitive substring. On multiple matches it lists them and exits; pass `--force` to remove the first. Confirm with the user before running.
 
 ### `sync`
 
@@ -56,7 +56,7 @@ This is what the scheduled routine calls. Steps:
 
    Do this in one pass in your head; do not ask the user to wait for a tool call per item. If there are more than 50 items, rank all of them but only include those with `relevance >= settings.min_relevance` in the digest.
 
-3. **Write digest.** Create `~/rss-digest/YYYY-MM-DD.md` (use today's local date). Format:
+3. **Write digest.** Create `~/rss-digest/YYYY-MM-DD.md` (use today's local date) **using the Write tool, not Bash**. Writing markdown (with `#` headers) via `cat > file <<EOF` triggers Claude Code's path-validation heuristic and forces a permission prompt on every run — the Write tool avoids it. Format:
 
    ```markdown
    # RSS digest — YYYY-MM-DD
