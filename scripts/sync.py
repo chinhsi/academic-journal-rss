@@ -13,12 +13,35 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import html
 import json
+import re
 import sys
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
+_TAG_RE = re.compile(r"<[^>]+>")
+_WS_RE = re.compile(r"\s+")
+SUMMARY_MAX_CHARS = 400
+
+
+def clean_summary(raw: str, max_chars: int = SUMMARY_MAX_CHARS) -> str:
+    """Strip HTML tags, decode entities, collapse whitespace, truncate.
+
+    Academic feeds frequently embed <p>, <a href>, <img>, and entities like
+    &amp; / &#x27; in summaries. Ranking doesn't benefit from markup, and
+    raw HTML inflates the token count ~3x.
+    """
+    if not raw:
+        return ""
+    text = _TAG_RE.sub(" ", raw)
+    text = html.unescape(text)
+    text = _WS_RE.sub(" ", text).strip()
+    if len(text) > max_chars:
+        text = text[: max_chars - 1].rstrip() + "…"
+    return text
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -54,6 +77,9 @@ def entry_published(entry: Any) -> datetime | None:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--mark", action="store_true", help="mark newly-found GUIDs as seen")
+    ap.add_argument("--output", default=None,
+                    help="Write full JSON to this path; stdout gets a short summary only. "
+                         "Use this so Claude can Read the file instead of piping stdout.")
     args = ap.parse_args()
 
     cfg = load_config()
@@ -103,7 +129,7 @@ def main() -> None:
                 "authors": [a.get("name") for a in entry.get("authors", []) if a.get("name")]
                 or ([entry.get("author")] if entry.get("author") else []),
                 "published": pub.isoformat() if pub else None,
-                "summary": (entry.get("summary") or "").strip(),
+                "summary": clean_summary(entry.get("summary") or ""),
             }
             new_items.append(item)
             n_new += 1
@@ -126,25 +152,33 @@ def main() -> None:
         state["last_run"] = now
         save_state(state)
 
-    print(
-        json.dumps(
-            {
-                "new_items": new_items,
-                "stats": {"feeds": feed_stats, "new_count": len(new_items)},
-                "errors": errors,
-                "marked": args.mark,
-                "settings": {
-                    "filter_window_hours": window_hours,
-                    "top_n": cfg["settings"]["top_n"],
-                    "min_relevance": cfg["settings"]["min_relevance"],
-                },
-                "interests": cfg.get("interests", ""),
-                "notifications": cfg.get("notifications", {}),
-            },
-            indent=2,
-            ensure_ascii=False,
-        )
-    )
+    payload = {
+        "new_items": new_items,
+        "stats": {"feeds": feed_stats, "new_count": len(new_items)},
+        "errors": errors,
+        "marked": args.mark,
+        "settings": {
+            "filter_window_hours": window_hours,
+            "top_n": cfg["settings"]["top_n"],
+            "min_relevance": cfg["settings"]["min_relevance"],
+        },
+        "interests": cfg.get("interests", ""),
+        "notifications": cfg.get("notifications", {}),
+    }
+
+    if args.output:
+        out_path = Path(args.output).expanduser()
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False))
+        print(json.dumps({
+            "output_file": str(out_path),
+            "new_count": len(new_items),
+            "feeds_ok": sum(1 for s in feed_stats if s["status"] == "ok"),
+            "feeds_error": len(errors),
+            "marked": args.mark,
+        }, indent=2, ensure_ascii=False))
+    else:
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
 
 
 if __name__ == "__main__":

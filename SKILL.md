@@ -54,9 +54,11 @@ Run `python3 scripts/sync.py` (no `--mark`). Report the stats: per-feed new/tota
 
 This is what the scheduled routine calls. Steps:
 
-1. **Fetch.** Run `python3 scripts/sync.py` (no `--mark`). Parse the JSON. If `errors[]` is non-empty, note them but continue — one broken feed should not block the digest.
+1. **Fetch.** Run `python3 scripts/sync.py --output /tmp/rss-sync.json` (no `--mark`). Stdout reports `{output_file, new_count, feeds_ok, feeds_error, marked}`. Then **use the Read tool** on `/tmp/rss-sync.json` to load the full payload. If `errors[]` is non-empty, note them but continue — one broken feed should not block the digest.
 
-2. **Rank.** Use the `interests` field from the `sync.py` JSON output (already fetched in step 1 — do not re-query config). For each item in `new_items`, assign:
+   **Never** pipe `sync.py` into `python3 -c` / `jq` / `awk`. That pattern triggers Claude Code's path-validation heuristic on every run. The Read tool on the `--output` file is the only approved way to get the items. Summaries are already HTML-stripped and capped at 400 chars by `sync.py`, so no post-processing is needed.
+
+2. **Rank.** Use the `interests` field from the loaded JSON. For each item in `new_items`, assign:
    - `relevance` (integer 1–5): how closely this matches the user's interests
    - `reason` (one short Chinese sentence): why you gave that score, referencing the user's interests. Write the reason in Chinese (Traditional) to match the digest frame.
 
@@ -96,9 +98,7 @@ This is what the scheduled routine calls. Steps:
 
    If `new_items` is empty: write a one-line "過去 `<settings.filter_window_hours>` 小時內無新文章。" digest so the daily file still exists.
 
-4. **Mark seen.** Re-run `python3 scripts/sync.py --mark`. This refetches (cheap; httpx may cache) and marks every GUID we just processed as seen in `state.json`. Without this step the same items come back tomorrow.
-
-   _Alternative for perf:_ skip refetch by writing the GUIDs directly — but prefer `--mark` for consistency.
+4. **Mark seen.** Re-run `python3 scripts/sync.py --mark`. This refetches (cheap; httpx may cache) and marks every GUID we just processed as seen in `state.json`. Without this step the same items come back tomorrow. No `--output` needed here — stdout JSON is discarded.
 
 5. **Email (if enabled).** Use the `notifications.email` object from the sync JSON output. If `enabled` is true, call the Gmail MCP tool `mcp__claude_ai_Gmail__create_draft` with:
    - `to`: the configured address
