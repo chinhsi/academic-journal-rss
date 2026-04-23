@@ -53,55 +53,58 @@ This is what the scheduled routine calls. Steps:
 
 2. **Rank.** Use the `interests` field from the `sync.py` JSON output (already fetched in step 1 — do not re-query config). For each item in `new_items`, assign:
    - `relevance` (integer 1–5): how closely this matches the user's interests
-   - `reason` (one short sentence): why you gave that score, referencing the user's interests
+   - `reason` (one short Chinese sentence): why you gave that score, referencing the user's interests. Write the reason in Chinese (Traditional) to match the digest frame.
 
    Do this in one pass in your head; do not ask the user to wait for a tool call per item. If there are more than 50 items, rank all of them but only include those with `relevance >= settings.min_relevance` (also from the JSON output) in the digest.
 
-3. **Write digest.** Create `~/rss-digest/YYYY-MM-DD.md` (use today's local date) **using the Write tool, not Bash**. Writing markdown (with `#` headers) via `cat > file <<EOF` triggers Claude Code's path-validation heuristic and forces a permission prompt on every run — the Write tool avoids it. Format:
+3. **Write digest.** Create `~/rss-digest/YYYY-MM-DD.md` (use today's local date) **using the Write tool, not Bash**. Writing markdown (with `#` headers) via `cat > file <<EOF` triggers Claude Code's path-validation heuristic and forces a permission prompt on every run — the Write tool avoids it.
+
+   Digest frame is in Traditional Chinese; article titles, authors, and summaries keep their original language (usually English — do not translate, it distorts academic terms). Titles are markdown links so the reader can click through from the file.
+
+   Format:
 
    ```markdown
-   # RSS digest — YYYY-MM-DD
+   # RSS 摘要 — YYYY-MM-DD
 
-   _Interests: <first 120 chars of interests, ellipsis if longer>_
+   _研究興趣：<first 120 chars of interests, ellipsis if longer>_
 
-   **{N} new items ranked across {F} feeds.** Top {top_n} below; full list at the bottom.
+   **共 {N} 則新文章，橫跨 {F} 個來源。** 以下為 Top {top_n} 精選；完整清單見底部。
 
-   ## Top picks
+   ## 精選
 
-   ### 1. <title> · <feed name> · relevance <score>/5
-   - <link>
-   - Authors: <authors, or "—">
-   - Published: <ISO date or "unknown">
-   - Why: <reason>
-   - <first 2-3 sentences of summary, cleaned of HTML>
+   ### 1. [<title>](<link>) · <feed name> · 相關度 <score>/5
+   - 作者：<authors, or "—">
+   - 發表：<ISO date or "日期未知">
+   - 推薦理由：<reason in Chinese>
+   - <first 2-3 sentences of summary, cleaned of HTML, original language>
 
    ### 2. ...
 
-   ## All new items
+   ## 所有新文章
 
-   | Score | Title | Feed | Link |
-   |-------|-------|------|------|
-   | 4 | ... | ... | ... |
+   | 分數 | 標題 | 來源 | 發表 |
+   |------|------|------|------|
+   | 4 | [title](link) | feed | YYYY-MM-DD |
    ```
 
    `top_n` and `filter_window_hours` come from the sync JSON output's `settings` object — not from a separate config query. Sort by score desc, then by published desc.
 
-   If `new_items` is empty: write a one-line "No new items in the last `<settings.filter_window_hours>`h." digest. Still notify so the user knows the run succeeded.
+   If `new_items` is empty: write a one-line "過去 `<settings.filter_window_hours>` 小時內無新文章。" digest. Still notify so the user knows the run succeeded.
 
 4. **Mark seen.** Re-run `python3 scripts/sync.py --mark`. This refetches (cheap; httpx may cache) and marks every GUID we just processed as seen in `state.json`. Without this step the same items come back tomorrow.
 
    _Alternative for perf:_ skip refetch by writing the GUIDs directly — but prefer `--mark` for consistency.
 
-5. **Notify.** Run `python3 scripts/notify.py --digest-file <path> --title "RSS digest: N new items" --summary "Top: <title of #1>"`.
+5. **Notify.** Run `python3 scripts/notify.py --digest-file <path> --title "RSS 摘要：N 則新文章" --summary "精選：<title of #1>"`.
 
 6. **Email (if enabled).** Use the `notifications.email` object from the sync JSON output. If `enabled` is true, call the Gmail MCP tool `mcp__claude_ai_Gmail__create_draft` with:
    - `to`: the configured address
-   - `subject`: `RSS digest YYYY-MM-DD — N new`
+   - `subject`: `RSS 摘要 YYYY-MM-DD — N 則新文章`
    - `body`: the full markdown digest content
 
    If the MCP tool is unavailable in this session, tell the user email was skipped because they need to authorize the Gmail connector in Claude settings. Do not fail the whole run.
 
-7. **Report** one line back: `"Digest written to <path>. N items ranked. Top: <title of #1>."`
+7. **Report** one line back in Chinese: `「摘要已寫入 <path>，共 N 則文章，精選：<title of #1>。」`
 
 ## Error handling
 
