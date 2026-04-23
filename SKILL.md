@@ -14,7 +14,7 @@ You are running a personal RSS digest tool. Scripts do the deterministic parts (
 - User config: `~/.claude/skills-data/rss-tracker/config.json` (or `$RSS_TRACKER_HOME/config.json`).
 - Digest output: `~/rss-digest/YYYY-MM-DD.md` (configurable).
 
-Before running any script, check that `requirements.txt` deps are installed. If import errors occur, ask the user to run `pip install -r <skill-root>/requirements.txt`.
+`init.py` self-heals dependencies: on first run it imports `feedparser` + `httpx` and, if missing, runs `python3 -m pip install --user -r requirements.txt` (falls back to `--break-system-packages` on PEP 668 systems). Always run `init` before any other sub-command on a fresh machine. If a later script still fails with `ImportError`, re-run `init` — it will fix deps and exit cleanly.
 
 ## Sub-commands
 
