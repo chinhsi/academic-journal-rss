@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.DS_Store
+
+# local dev data (real user data lives in ~/.claude/skills-data/rss-tracker/)
+data/
+*.sqlite
+*.db
+state.json
+config.json

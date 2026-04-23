@@ -1,0 +1,43 @@
+# Sample feeds. Copy to your config.json `feeds` array, or add with:
+#   /rss-tracker add <url> --name "..." --category "..."
+
+# ── Computer Science / AI ──────────────────────────────────
+[[feeds]]
+name = "arXiv cs.CL (NLP)"
+url  = "http://export.arxiv.org/rss/cs.CL"
+category = "cs"
+
+[[feeds]]
+name = "arXiv cs.LG (Machine Learning)"
+url  = "http://export.arxiv.org/rss/cs.LG"
+category = "cs"
+
+# ── Medicine / Oncology ────────────────────────────────────
+# (Cloudflare-protected; rss-tracker bypasses with browser headers)
+[[feeds]]
+name = "JCO (ASCO Pubs)"
+url  = "https://ascopubs.org/action/showFeed?type=etoc&feed=rss&jc=jco"
+category = "medicine"
+
+[[feeds]]
+name = "NEJM Hematology-Oncology"
+url  = "https://onesearch-rss.nejm.org/api/specialty/rss?context=nejm&specialty=hematology-oncology"
+category = "medicine"
+
+# ── Education / CALL ───────────────────────────────────────
+[[feeds]]
+name = "Computer Assisted Language Learning (T&F)"
+url  = "https://www.tandfonline.com/feed/rss/ncal20"
+category = "education"
+
+[[feeds]]
+name = "Language Learning & Technology"
+url  = "https://www.lltjournal.org/rss/current"
+category = "education"
+
+# ── PubMed saved search (customize per user) ───────────────
+# Replace the search ID with your own from https://pubmed.ncbi.nlm.nih.gov/
+# [[feeds]]
+# name = "PubMed: my saved search"
+# url  = "https://pubmed.ncbi.nlm.nih.gov/rss/search/<YOUR_ID>/?limit=50"
+# category = "medicine"
